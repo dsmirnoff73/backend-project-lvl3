@@ -1,1 +1,3 @@
 [![Build Status](https://travis-ci.org/dsmirnoff73/backend-project-lvl3.svg?branch=master)](https://travis-ci.org/dsmirnoff73/backend-project-lvl3)
+[![Maintainability](https://api.codeclimate.com/v1/badges/351210a2cf0d1c4bf936/maintainability)](https://codeclimate.com/github/dsmirnoff73/backend-project-lvl3/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/351210a2cf0d1c4bf936/test_coverage)](https://codeclimate.com/github/dsmirnoff73/backend-project-lvl3/test_coverage)

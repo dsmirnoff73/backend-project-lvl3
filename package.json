@@ -43,6 +43,17 @@
     "eslint-plugin-import": "^2.20.0",
     "eslint-plugin-jest": "^23.6.0",
     "jest": "^25.1.0",
-    "jest-cli": "^25.1.0"
-  }
+    "jest-cli": "^25.1.0",
+    "nock": "^11.7.2"
+  },
+  "dependencies": {
+    "axios": "^0.19.2",
+    "commander": "^4.1.0"
+  },
+  "bin": {
+    "page-loader": "dist/bin/page-loader.js"
+  },
+  "files": [
+    "dist"
+  ]
 }
