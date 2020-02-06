@@ -14,3 +14,5 @@ test:
 	npx jest
 watch:
 	npm run test -- --watch
+debug:
+	DEBUG=page-loader:* npx babel-node src/bin/page-loader.js --output  var/temp http://hexlet.io/courses

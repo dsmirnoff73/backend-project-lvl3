@@ -2,69 +2,78 @@ import { promises as _ } from 'fs';
 import { resolve, join, parse } from 'path';
 import axios from 'axios';
 import cheerio from 'cheerio';
+import debug from 'debug';
 
-const writeToFile = ({ path, localLink, content }) => _
+const logInfo = debug('page-loader:INFO');
+const logBuilder = debug('page-loader:BULDER');
+const logError = debug('page-loader:ERROR');
+
+function addLocalAttr() {
+  this.fileName = this.reg.exec(this.nick)[1].replace(/\W/g, '-');
+  this.fullFileName = `${this.fileName}${this.ext}`;
+  this.fullPath = join(this.path, this.fullFileName);
+  this.resourcesDir = `${this.fileName}_files`;
+  return this;
+}
+
+const writeToFile = ({ path, fullPath, content }) => _
   .mkdir(path, { recursive: true })
-  .then(() => _.writeFile(localLink, content));
+  .then(() => _.writeFile(fullPath, content));
 
-
-const buildName = (string, reg) => reg.exec(string)[1].replace(/\W/g, '-');
-
-export default (address, _path) => {
-  const page = {
+export default (address, path) => {
+  const page = addLocalAttr.apply({
     address,
-    path: resolve(process.cwd(), _path || ''),
-    name: buildName(address, /\/\/(.*)/),
-    extension: '.html',
+    path: resolve(process.cwd(), path || ''),
+    nick: address,
+    reg: /\/\/(.*)/,
+    ext: '.html',
     resources: [],
-
-    get resourcesDir() {
-      return `${this.name}_files`;
-    },
-    get fileName() {
-      return `${this.name}${this.extension}`;
-    },
-    get localLink() {
-      return join(this.path, this.fileName);
-    },
-  };
+  });
+  logBuilder('page constructed %O', page);
 
   return axios.get(page.address)
     .then(({ data }) => {
       const $ = cheerio.load(data);
+      logInfo('page received');
+
       const srcLocalElements = $("[src^='/']");
+      logInfo('local links filtered');
 
       srcLocalElements.each((i, element) => {
-        const link = $(element).attr('src');
-        const { dir, ext, name } = parse(link);
+        const src = $(element).attr('src');
+        logInfo('processing link %d: %s', i, src);
 
-        const resource = {
-          address: `${(new URL(address)).origin}${link}`,
+        const { dir, ext, name } = parse(src);
+
+        const resource = addLocalAttr.apply({
+          address: `${(new URL(page.address)).origin}${src}`,
           path: join(page.path, page.resourcesDir),
-          name: buildName(`${dir}-${name}`, /^\/(.*)/),
-          extension: ext,
+          nick: `${dir}-${name}`,
+          reg: /^\/(.*)/,
+          ext,
+        });
+        logBuilder('local resource constructed %O', resource);
 
-          get fileName() {
-            return `${this.name}${this.extension}`;
-          },
-          get localLink() {
-            return join(this.path, this.fileName);
-          },
-        };
-
-        $(element).attr('src', join(page.resourcesDir, resource.fileName));
+        const localLink = join(page.resourcesDir, resource.fullFileName);
+        $(element).attr('src', localLink);
         page.resources.push(resource);
+        logInfo('local link changed in HTML with %s', localLink);
       });
 
       page.content = $.html();
 
-      return Promise.all([
-        writeToFile(page),
-        ...page.resources.map((resource) => axios
-          .get(resource.address, { responseType: 'arraybuffer' })
-          .then((response) => writeToFile({ ...resource, content: response.data }))),
-      ]);
+      return writeToFile(page);
     })
-    .then(() => page)
-    .catch((err) => console.log(err));
+    .then(() => Promise.all([...page.resources.map(
+      (resource) => axios.get(resource.address, { responseType: 'arraybuffer' })
+        .then((response) => {
+          logInfo('saving local resource from %s', resource.address);
+          return writeToFile({ ...resource, content: response.data });
+        }),
+    )]))
+    .then(() => {
+      logInfo('DONE');
+      return page;
+    })
+    .catch((err) => logError(err));
 };
